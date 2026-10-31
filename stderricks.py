@@ -1,12 +1,12 @@
 import tkinter as tk
 from tkinter import messagebox
-import socket, ipaddress, threading, queue, json, csv, subprocess, platform, time, re, os, random
+import socket, ipaddress, threading, queue, json, csv, subprocess, platform, time, re, os, random, sqlite3, shutil, tempfile, webbrowser
 from pathlib import Path
 from datetime import datetime
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 APP_NAME = "ST. DERRICKS"
-VERSION = "3.0"
+VERSION = "4.0"
 BG = "#070b12"
 PANEL = "#101827"
 PANEL2 = "#0b1320"
@@ -94,8 +94,8 @@ class StDerricks:
     def build_ui(self):
         r = self.root
         r.title("ST. DERRICKS // CYBER DEFENCE OPERATIONS")
-        r.geometry("1440x900")
-        r.minsize(1120, 720)
+        r.geometry("1540x960")
+        r.minsize(1180, 760)
         r.configure(bg=BG)
 
         header = tk.Frame(r, bg=BG)
@@ -105,6 +105,12 @@ class StDerricks:
         tk.Label(brand, text="ST. DERRICKS", bg=BG, fg=GREEN, font=("Consolas", 26, "bold")).pack(anchor="w")
         tk.Label(brand, text="CYBER DEFENCE OPERATIONS  //  NETWORK THREAT INTELLIGENCE", bg=BG, fg=CYAN,
                  font=("Consolas", 9, "bold")).pack(anchor="w")
+        tk.Label(brand, text="COMMAND // MONITOR // INVESTIGATE // DOCUMENT", bg=BG, fg=MUTED,
+                 font=("Consolas", 8)).pack(anchor="w", pady=(4, 0))
+        tk.Button(header, text="OPEN GHOST TERMINAL  >", command=self.open_ghost_terminal,
+                  bg="#12352c", fg=GREEN, activebackground="#1b5944", activeforeground=WHITE,
+                  relief="flat", font=("Consolas", 9, "bold"), padx=14, pady=10,
+                  cursor="hand2").pack(side="right", padx=(12, 0))
         self.clock = tk.Label(header, text="00:00:00", bg=BG, fg=GREEN, font=("Consolas", 23, "bold"))
         self.clock.pack(side="right", padx=14)
         self.date_label = tk.Label(header, text="", bg=BG, fg=MUTED, font=("Consolas", 9))
@@ -148,6 +154,8 @@ class StDerricks:
             ("06  ACTIVE CONNECTIONS", self.connections),
             ("07  INTRUSION WATCH  [ON/OFF]", self.toggle_watch),
             ("08  EXPORT EVIDENCE", self.export_report),
+            ("09  GHOST TERMINAL", self.open_ghost_terminal),
+            ("10  WEB ACTIVITY", self.show_web_history),
         ]
         for label, fn in actions:
             tk.Button(left, text=label, command=fn, anchor="w", bg="#152536", fg=GREEN,
@@ -156,7 +164,7 @@ class StDerricks:
         tk.Button(left, text="CLEAR EVENT FEED", command=self.clear_feed, bg="#2a1b27", fg=AMBER,
                   activebackground="#513040", relief="flat", font=("Consolas", 8, "bold"),
                   pady=8, cursor="hand2").pack(fill="x", padx=8, pady=(12, 4))
-        tk.Label(left, text="LAB SCOPE: PRIVATE / LOOPBACK\nSCANS: FIXED COMMON TCP PORTS", bg=PANEL, fg=MUTED,
+        tk.Label(left, text="LAB SCOPE: PRIVATE / LOOPBACK\nSCANS: FIXED COMMON TCP PORTS\nWEB HISTORY: LOCAL PROFILE ONLY", bg=PANEL, fg=MUTED,
                  font=("Consolas", 7), justify="left").pack(anchor="w", padx=13, pady=10)
 
         # Center: event stream and command/task console
@@ -390,6 +398,132 @@ class StDerricks:
                 writer.writerows(self.data["ports"])
             return {"json":str(json_path), "csv":str(csv_path)}
         self.start_job("EVIDENCE EXPORT", work)
+
+
+    def open_ghost_terminal(self):
+        win = tk.Toplevel(self.root)
+        win.title("GHOST // INTEGRATED OPERATIONS TERMINAL")
+        win.geometry("900x620")
+        win.configure(bg="#03070c")
+        top = tk.Frame(win, bg="#071522", padx=14, pady=12)
+        top.pack(fill="x")
+        tk.Label(top, text="GHOST // COMMAND INTERFACE", bg="#071522", fg=GREEN,
+                 font=("Consolas", 16, "bold")).pack(side="left")
+        tk.Label(top, text="LOCAL NODE • AUTHORISED OPERATIONS", bg="#071522", fg=CYAN,
+                 font=("Consolas", 8, "bold")).pack(side="right")
+        output = tk.Text(win, bg="#02060a", fg=GREEN, insertbackground=GREEN,
+                         font=("Consolas", 10), relief="flat", wrap="word", padx=14, pady=12)
+        output.pack(fill="both", expand=True, padx=10, pady=(10, 6))
+        output.tag_config("cyan", foreground=CYAN)
+        output.tag_config("amber", foreground=AMBER)
+        output.tag_config("red", foreground=RED)
+        output.insert("end", "GHOST // INTEGRATED TERMINAL v4.0\\nType help to list commands.\\n\\n", "cyan")
+        row = tk.Frame(win, bg="#03070c")
+        row.pack(fill="x", padx=10, pady=(0, 10))
+        tk.Label(row, text="GHOST@LOCAL-NET >", bg="#03070c", fg=GREEN, font=("Consolas", 10, "bold")).pack(side="left", padx=(4, 8))
+        command = tk.Entry(row, bg="#0b1722", fg=WHITE, insertbackground=GREEN, relief="flat", font=("Consolas", 11))
+        command.pack(side="left", fill="x", expand=True, ipady=9)
+        def write(value, tag=None):
+            output.insert("end", value + "\\n", tag or "")
+            output.see("end")
+        def execute(event=None):
+            raw = command.get().strip()
+            command.delete(0, "end")
+            if not raw: return
+            write("GHOST@LOCAL-NET > " + raw, "cyan")
+            parts = raw.split()
+            cmd, args = parts[0].lower(), parts[1:]
+            if cmd in ("exit", "close"): win.destroy()
+            elif cmd == "help":
+                write("help | status | ping <IP> | scan | ports <private-IP>")
+                write("dns <hostname> | wifi | connections | router | webhistory | clear")
+                write("Only scan networks you own/manage. Port checks are private/loopback only.", "amber")
+            elif cmd == "clear": output.delete("1.0", "end")
+            elif cmd == "status":
+                for k,v in {"HOST":socket.gethostname(),"LOCAL IPv4":self.local_ip,"GATEWAY":self.gateway,"PLATFORM":platform.platform()}.items(): write(f"{k}: {v}")
+            elif cmd == "ping":
+                if not args: write("Usage: ping 192.168.0.1", "amber")
+                else:
+                    try: ipaddress.ip_address(args[0])
+                    except ValueError: write("Enter a valid IP address.", "red"); return
+                    out = run_command(["ping","-n","1","-w","1500",args[0]] if platform.system()=="Windows" else ["ping","-c","1","-W","2",args[0]],4)
+                    ok = "ttl=" in out.lower() or "bytes from" in out.lower()
+                    write(("HOST RESPONDED // " if ok else "NO ICMP RESPONSE // ")+args[0], "cyan" if ok else "amber")
+            elif cmd == "scan":
+                self.discover()
+                write("Network Radar dispatched. Results appear in the dashboard feed.", "amber")
+            elif cmd == "ports":
+                try: host = str(ipaddress.ip_address(args[0]))
+                except Exception: write("Usage: ports 192.168.0.1", "amber"); return
+                addr = ipaddress.ip_address(host)
+                if not (addr.is_private or addr.is_loopback): write("BLOCKED // private/loopback target only.", "red"); return
+                for port,service in PORTS.items():
+                    s=socket.socket(); s.settimeout(.55)
+                    try: state="OPEN" if s.connect_ex((host,port))==0 else "CLOSED/FILTERED"
+                    finally: s.close()
+                    write(f"{host}:{port} {service} // {state}", "amber" if state=="OPEN" else None)
+                write("Open ports do not prove vulnerabilities.", "amber")
+            elif cmd == "dns":
+                if not args: write("Usage: dns example.com", "amber")
+                else:
+                    try:
+                        for ip in sorted({x[4][0] for x in socket.getaddrinfo(args[0],None,socket.AF_INET)}): write(args[0]+" -> "+ip,"cyan")
+                    except OSError as exc: write("DNS ERROR // "+str(exc),"red")
+            elif cmd == "wifi":
+                write(run_command(["netsh","wlan","show","interfaces"]) if platform.system()=="Windows" else "Detailed Wi-Fi information currently uses Windows netsh.")
+            elif cmd == "connections": write(run_command(["netstat","-ano","-p","tcp"] if platform.system()=="Windows" else ["ss","-ant"]))
+            elif cmd == "router":
+                gw=self.gateway if self.gateway!="Not detected" else "192.168.0.1"
+                write("Opening local router page: http://"+gw,"cyan")
+                write("Authenticate locally. Settings depend on firmware; no credentials are stored.","amber")
+                webbrowser.open("http://"+gw)
+            elif cmd == "webhistory":
+                self.show_web_history()
+                write("Local browser history viewer opened for this Windows profile.","amber")
+            else: write("Unknown command. Type help.","red")
+        command.bind("<Return>", execute)
+        command.focus_set()
+
+    def show_web_history(self):
+        win = tk.Toplevel(self.root)
+        win.title("ST. DERRICKS // LOCAL WEB ACTIVITY")
+        win.geometry("1040x650")
+        win.configure(bg=BG)
+        head=tk.Frame(win,bg=PANEL,padx=14,pady=12); head.pack(fill="x",padx=12,pady=12)
+        tk.Label(head,text="LOCAL WEB ACTIVITY // BROWSER HISTORY",bg=PANEL,fg=CYAN,font=("Consolas",13,"bold")).pack(anchor="w")
+        tk.Label(head,text="Reads recent Chrome / Edge history from this Windows user profile. Nothing is uploaded.",bg=PANEL,fg=MUTED,font=("Consolas",8)).pack(anchor="w",pady=(5,0))
+        body=tk.Frame(win,bg="#03070c"); body.pack(fill="both",expand=True,padx=12,pady=(0,12))
+        text=tk.Text(body,bg="#03070c",fg=GREEN,font=("Consolas",9),relief="flat",wrap="none",padx=12,pady=10)
+        text.pack(fill="both",expand=True)
+        text.tag_config("cyan",foreground=CYAN); text.tag_config("amber",foreground=AMBER)
+        def refresh():
+            text.delete("1.0","end")
+            base=Path(os.environ.get("LOCALAPPDATA",""))
+            profiles=[("Chrome",base/"Google/Chrome/User Data/Default/History"),("Edge",base/"Microsoft/Edge/User Data/Default/History")]
+            rows=[]
+            for browser,db in profiles:
+                if not db.exists(): continue
+                temp=None
+                try:
+                    fd,temp=tempfile.mkstemp(prefix="ghost_history_",suffix=".db"); os.close(fd); shutil.copy2(db,temp)
+                    con=sqlite3.connect(temp); cur=con.cursor()
+                    cur.execute("SELECT url,title,last_visit_time FROM urls ORDER BY last_visit_time DESC LIMIT 60")
+                    for url,title,visit in cur.fetchall():
+                        try: when=datetime.fromtimestamp(visit/1000000-11644473600).strftime("%Y-%m-%d %H:%M:%S")
+                        except Exception: when="time unavailable"
+                        rows.append((when,browser,title or "(untitled)",url))
+                    con.close()
+                except Exception as exc: rows.append(("",browser,"Could not read history: "+str(exc),""))
+                finally:
+                    if temp:
+                        try: os.remove(temp)
+                        except OSError: pass
+            if not rows: text.insert("end","No Chrome or Edge history found in this Windows profile.\\n","amber"); return
+            for when,browser,title,url in sorted(rows,reverse=True)[:100]:
+                text.insert("end",f"{when} | {browser}\\n{title}\\n{url}\\n"+"-"*100+"\\n")
+            text.insert("end","LOCAL ONLY // Private/incognito browsing is not recorded in ordinary browser history.\\n","amber")
+        tk.Button(head,text="REFRESH HISTORY",command=refresh,bg="#12352c",fg=GREEN,relief="flat",font=("Consolas",9,"bold"),padx=12,pady=7).pack(anchor="e",pady=(8,0))
+        refresh()
 
     def clear_feed(self):
         self.feed.delete("1.0", "end")
