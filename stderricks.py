@@ -32,7 +32,7 @@ def main():
     feed=tk.Text(body,bg="#050a0e",fg=GREEN,font=("Consolas",10),relief="flat",wrap="word")
     feed.pack(side="left",fill="both",expand=True)
     events=queue.Queue(); busy=[False]
-    def log(s): feed.insert("end","[ "+datetime.now().strftime("%H:%M:%S")+" ] "+s+"\\n"); feed.see("end")
+    def log(s): feed.insert("end","[ "+datetime.now().strftime("%H:%M:%S")+" ] "+s+"\n"); feed.see("end")
     def job(label,fn):
         if busy[0]: return
         busy[0]=True; log("START // "+label)
