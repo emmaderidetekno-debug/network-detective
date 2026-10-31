@@ -153,7 +153,8 @@ def main():
             try: show(json.loads(DB.read_text(encoding="utf-8")))
             except Exception: say("INFO","No inventory yet; run scan.")
         elif c=="ping":
-            if a: say("PING",f"{a[0]} responded." if ping(a[0],2) else f"{a[0]} did not respond (or blocks ICMP).","92" if ping(a[0],2) else "93")
+            if a:
+                ok=ping(a[0],2); say("PING",f"{a[0]} responded." if ok else f"{a[0]} did not respond (or blocks ICMP).","92" if ok else "93")
             else: say("USAGE","ping 192.168.0.1")
         elif c=="ports":
             if a: ports(a[0])
