@@ -8,7 +8,7 @@ Nmap-inspired educational desktop network investigation tool built with Python's
 - DNS Recon: resolves a hostname to IPv4 addresses.
 - Connectivity Test: checks DNS and TCP reachability to 1.1.1.1:443.
 - Local Listeners: inspects listening TCP sockets using Windows netstat or Linux ss.
-- Export Report: saves a JSON report in the reports folder.
+- Export Report: saves JSON findings and a CSV of port checks in reports/.
 
 ## Windows
 Run `py stderricks.py` or double-click `START_ST_DERRICKS.bat`. Requires Python 3.10+ and Tkinter. No pip packages.
