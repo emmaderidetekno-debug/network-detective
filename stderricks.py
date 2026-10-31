@@ -50,9 +50,16 @@ def main():
     def discover():
         net=ipaddress.ip_network(local+"/24",strict=False)
         found=[]
-        for host in net.hosts():
-            h=str(host)
-            if h!=local and ping(h): found.append(h); events.put(("log","DEVICE ONLINE // "+h))
+        hosts=[str(h) for h in net.hosts() if str(h)!=local]
+        with ThreadPoolExecutor(max_workers=64) as pool:
+            jobs={pool.submit(ping,h):h for h in hosts}
+            for future in as_completed(jobs):
+                h=jobs[future]
+                try:
+                    if future.result():
+                        found.append(h); events.put(("log","DEVICE ONLINE // "+h))
+                except Exception: pass
+        self.data["devices"]=found
         return "RADAR COMPLETE // "+str(len(found))+" responsive devices"
     def ports():
         host=target.get().strip(); addr=ipaddress.ip_address(host)
@@ -64,29 +71,39 @@ def main():
             finally: s.close()
             rows.append({"ip":host,"port":port,"service":name,"status":state})
             events.put(("log",str(port)+" "+name+" // "+state))
+        self.data["ports"].extend(rows)
         return rows
     def dns():
         host=target.get().strip()
-        return sorted({x[4][0] for x in socket.getaddrinfo(host,None,socket.AF_INET)})
+        result=sorted({x[4][0] for x in socket.getaddrinfo(host,None,socket.AF_INET)})
+        self.data["dns"].append({"hostname":host,"addresses":result})
+        return result
     def connect():
         try: socket.gethostbyname("example.com"); d="DNS WORKING"
         except OSError: d="DNS FAILED"
         try: s=socket.create_connection(("1.1.1.1",443),3); s.close(); n="INTERNET REACHABLE"
         except OSError: n="INTERNET NOT REACHABLE"
+        self.data["connectivity"]={"dns":d,"internet":n}
         return d+" // "+n
     def listeners():
         import subprocess,platform
         if platform.system()=="Windows":
             p=subprocess.run(["netstat","-ano"],capture_output=True,text=True)
             lines=[x.strip() for x in p.stdout.splitlines() if "LISTENING" in x]
+            self.data["listeners"]=lines
             return lines
         p=subprocess.run(["ss","-lntp"],capture_output=True,text=True)
         return p.stdout.splitlines()
     def export():
         folder=Path(__file__).resolve().parent/"reports"; folder.mkdir(exist_ok=True)
-        data={"tool":"ST. DERRICKS","version":"2.0","timestamp":datetime.now().isoformat()}
+        data={"tool":"ST. DERRICKS","version":"2.0","timestamp":datetime.now().astimezone().isoformat(),"host":socket.gethostname(),"local_ip":self.ip,**self.data}
         path=folder/("report_"+datetime.now().strftime("%Y%m%d_%H%M%S")+".json")
         path.write_text(json.dumps(data,indent=2),encoding="utf-8")
+        csvpath=folder/("port_results_"+datetime.now().strftime("%Y%m%d_%H%M%S")+".csv")
+        with csvpath.open("w",newline="",encoding="utf-8") as f:
+            writer=csv.DictWriter(f,fieldnames=["ip","port","service","status"])
+            writer.writeheader()
+            writer.writerows(self.data["ports"])
         return "REPORT SAVED // "+str(path)
     def button(label,fn):
         tk.Button(side,text=label,command=lambda:job(label,fn),anchor="w",bg="#14232d",fg=GREEN,activebackground="#1c443d",relief="flat",font=("Consolas",9,"bold"),padx=12,pady=12).pack(fill="x",padx=10,pady=4)
