@@ -28,3 +28,9 @@ Run `py ghost.py` or double-click `START_GHOST.bat` on Windows. GHOST provides a
 GHOST uses Python's standard library; no pip packages are required. It stores its device inventory and exports under `reports/`. The ping scan may miss clients that block ICMP; the router's connected-client list is the authoritative place to verify Wi-Fi associations. Router administration is opened in the browser; actual block/unblock and Wi-Fi configuration depend on the installed Tenda F3 firmware and are performed after local authentication. GHOST does not store router credentials or guess undocumented router endpoints.
 
 **Safety:** Use only on networks you own or are authorised to administer. Port checks are limited to private/loopback IPv4 targets and a fixed list of common TCP ports. An open port is not automatically a vulnerability.
+
+
+## ST. DERRICKS v4.0
+The desktop dashboard now includes an integrated GHOST command console and a local web-activity viewer. Use the **OPEN GHOST TERMINAL** control or the **GHOST TERMINAL** mission button. Commands include `help`, `status`, `ping`, `scan`, `ports`, `dns`, `wifi`, `connections`, `router`, and `webhistory`.
+
+The Web Activity viewer reads recent Chrome and Microsoft Edge history from the current Windows user profile only. It is manually opened/refreshed, stays on the local computer, and does not capture private/incognito sessions or inspect other users' profiles. It is not live HTTPS interception. The dashboard's network activity graph is an event-activity visualization, not measured bandwidth.
